@@ -6,15 +6,27 @@
     <title>Messa: Новая Соц. Сеть!</title>
     <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.1.1/crypto-js.js"></script>
     <style>
+        body {
+            background-color: rgb(17 24 39 / var(--tw-bg-opacity, 1));
+            color: #e0e0e0;
+        }
         #chat {
             margin-bottom: 20px;
         }
         .message {
             margin-bottom: 10px;
+            margin-left: 10px;
+            background-color: #1e1e1e;
+            border-radius: 10px;
+            border: 1px solid #292929;
+            width: 250px;
+            height: 60px;
         }
         .username {
             font-weight: bold;
-            color: #4CAF50;
+            position: relative;
+            left: 20px;
+            top: 5px;
         }
         .audio-message {
             cursor: pointer;
@@ -22,20 +34,52 @@
         .image-message {
             max-width: 200px;
         }
+        .encrypt {
+            background-color: #1e1e1e;
+            border-radius: 10px;
+            border: 1px solid #292929;
+            color: yellow;
+            margin-left: 10px;
+            width: 450px;
+            height: 45px;
+            text-align: center;
+        }
+        .msgtext {
+            position: relative;
+            top: 20px;
+        }
+        .msginput {
+            border: 0px;
+            background-color: rgb(238, 234, 234);
+            height: 50px;
+            width: 400px;
+            color: black;
+            border-radius: 20px;
+            font-size: 15px;
+        }
+        .msgsend {
+            border: 0px;
+            border-radius: 200px;
+            background-color: red;
+            height: 50px;
+            width: 50px;
+            color: white;
+        }
     </style>
 </head>
 <body>
-    <p>🔒 Сообщение и звонки защищены сквозным шифрованием. Третьи лица, включая Messa не могут ничего прочитать.</p>
-    <p id="encryption-status">✅ Шифрование активно</p>
+    <p class="encrypt">  🔒 Все сообщения будут видны на сайте, будьте осторожны! <br> Сервис предоставлен VCS</p>
 
     <div id="chat"></div>
+    <br>
+
+    <input type="text" id="message" class="msginput" placeholder="Введите сообщение">
+    <button onclick="sendMessage()" class="msgsend">SEND</button>
+    <br>
 
     <label for="username">Введите ваше имя: </label>
     <input type="text" id="username" placeholder="Например: Печенный Университет">
-    <br><br>
-
-    <input type="text" id="message" placeholder="Введите сообщение">
-    <button onclick="sendMessage()">Отправить</button>
+    <br>
 
     <button onclick="startRecording()">Записать голосовое сообщение</button>
     <button onclick="stopRecording()" disabled>Остановить запись</button>
@@ -136,17 +180,17 @@
                 const audioElement = document.createElement("audio");
                 audioElement.controls = true;
                 audioElement.src = "data:audio/wav;base64," + content;  // Воспроизведение аудио
-                messageElement.innerHTML = `<span class="username">${sender}:</span> Голосовое сообщение: `;
+                messageElement.innerHTML = `<span class="username">${sender}</span> Голосовое сообщение: `;
                 messageElement.appendChild(audioElement);
             } else if (messageType === "image") {
                 const imageElement = document.createElement("img");
                 imageElement.src = "data:image/jpeg;base64," + content;
                 imageElement.classList.add("image-message");
-                messageElement.innerHTML = `<span class="username">${sender}:</span> Изображение: `;
+                messageElement.innerHTML = `<span class="username">${sender}</span> `;
                 messageElement.appendChild(imageElement);
             } else {
                 const decryptedMessage = decryptMessage(content);
-                messageElement.innerHTML = `<span class="username">${sender}:</span> ${decryptedMessage}`;
+                messageElement.innerHTML = `<span class="username">${sender}</span> <span class="msgtext">${decryptedMessage}</span>`;
             }
 
             chat.appendChild(messageElement);
