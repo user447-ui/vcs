@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"github.com/gorilla/websocket"
 	"sync"
+
+	"github.com/gorilla/websocket"
+	"go.etcd.io/bbolt"
 )
 
 var upgrader = websocket.Upgrader{
@@ -14,10 +16,54 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-// Список подключенных клиентов
 var clients = make(map[*websocket.Conn]bool)
-var messages []string // Список сообщений
-var mu sync.Mutex // Для синхронизации доступа к messages
+var mu sync.Mutex
+var db *bbolt.DB
+
+// Открытие базы данных BoltDB
+func openDB() {
+	var err error
+	db, err = bbolt.Open("data/messages.db", 0600, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+// Функция для сохранения сообщения в базе данных
+func saveMessage(message string) {
+	err := db.Update(func(tx *bbolt.Tx) error {
+		bucket, err := tx.CreateBucketIfNotExists([]byte("messages"))
+		if err != nil {
+			return err
+		}
+		id, _ := bucket.NextSequence()
+		key := []byte(fmt.Sprintf("%d", id))
+		return bucket.Put(key, []byte(message))
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+// Функция для чтения всех сообщений
+func getMessages() []string {
+	var messages []string
+	err := db.View(func(tx *bbolt.Tx) error {
+		bucket := tx.Bucket([]byte("messages"))
+		if bucket == nil {
+			return nil
+		}
+		bucket.ForEach(func(k, v []byte) error {
+			messages = append(messages, string(v))
+			return nil
+		})
+		return nil
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	return messages
+}
 
 func handleConnections(w http.ResponseWriter, r *http.Request) {
 	// Устанавливаем WebSocket-соединение
@@ -34,7 +80,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 
 	// Отправляем всем новым клиентам старые сообщения
 	mu.Lock()
-	for _, msg := range messages {
+	for _, msg := range getMessages() {
 		err := conn.WriteMessage(websocket.TextMessage, []byte(msg))
 		if err != nil {
 			log.Println("Ошибка отправки сообщения:", err)
@@ -51,12 +97,11 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 
-		// Печатаем зашифрованное сообщение
 		fmt.Printf("Получено сообщение: %s\n", msg)
 
-		// Сохраняем сообщение
+		// Сохраняем сообщение в базе данных
 		mu.Lock()
-		messages = append(messages, string(msg))
+		saveMessage(string(msg))
 		mu.Unlock()
 
 		// Отправляем сообщение всем подключенным клиентам
@@ -74,12 +119,16 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "index.html") // Статический файл для фронта
-	})
+	// Открываем базу данных
+	openDB()
 
 	// Обрабатываем подключение по WebSocket
 	http.HandleFunc("/ws", handleConnections)
+
+	// Статический файл для фронта
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "index.html")
+	})
 
 	// Запуск сервера
 	log.Println("Запуск сервера на http://localhost:8080")
